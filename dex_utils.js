@@ -7,6 +7,7 @@ const exAbi = require("./ABI/Exchange.json")
 
 let id = process.env.MY_ACCOUNT_ID;
 let key = process.env.MY_TESTNET_PRIVATE_KEY;
+let contract_Fac = "0.0.34743911"
 
 function setClient(Accid = id, AccKey = key) {
     return Client.forTestnet().setOperator(Accid, AccKey)
@@ -94,6 +95,7 @@ exports.createPair = async function createPair(t_addr, t_amt, h_amt, accid, acck
     try {
         const TokenCreator = await ApiSession.default()
         const { session } = await ApiSession.default({wallet: {sdk : {operatorId: accid, operatorKey: acckey}}})
+        var { n, s, d } = await getinfo(t_addr)
         let factory_contract = await TokenCreator.session.getLiveContract({id: ContractId.fromString(contract_Fac), abi: facAbi,})
         let price = await coin_price()
         let htosend = (1.1/price).toFixed(3)
@@ -103,7 +105,6 @@ exports.createPair = async function createPair(t_addr, t_amt, h_amt, accid, acck
         let exchange_contract = await session.getLiveContract({id: exchange_addr, abi: exAbi,})
         await optInContract(exchange_contract, 3000000, TokenId.fromString(t_addr).toSolidityAddress())
         await optInLPtoken(exchange_contract, 3000000, session.wallet.account.id.toSolidityAddress())
-        var { n, s, d } = await getinfo(t_addr)
         let lpt = await exchange_contract.addLiquidity({amount: Hbar.from(h_amt, HbarUnit.Hbar).toBigNumber(), gas: 5000000}, t_amt * (10 ** d))
         exchange_contract.onEvent("AddLiquidity", ({sender, message}) => {
             console.log(`Add liquidity Event: ${message}`)
@@ -117,11 +118,11 @@ exports.createPair = async function createPair(t_addr, t_amt, h_amt, accid, acck
 exports.addLiquidity = async function addLiquidity(tAddr, tamt, hAmt, accid, acckey) {
     try {
         const { session } = await ApiSession.default({wallet: {sdk : {operatorId: accid, operatorKey: acckey}}})
+        var { n, s, d } = await getinfo(tAddr)
         let factory_contract = await session.getLiveContract({id: ContractId.fromString(contract_Fac), abi: facAbi,})
         let exchange_addr = await factory_contract.getExchange(TokenId.fromString(tAddr).toSolidityAddress())
         let exchange_contract = await session.getLiveContract({id: ContractId.fromSolidityAddress(exchange_addr.id), abi: exAbi,})
         await optInLPtoken(exchange_contract, 3000000, session.wallet.account.id.toSolidityAddress())
-        var { n, s, d } = await getinfo(tAddr)
         let lpt = await exchange_contract.addLiquidity({amount: Hbar.from(hAmt, HbarUnit.Hbar).toBigNumber(), gas: 5000000}, tamt * (10 ** d))
         exchange_contract.onEvent("AddLiquidity", ({sender, message}) => {
             console.log(`Add liquidity Event: ${message}`)
@@ -135,9 +136,9 @@ exports.addLiquidity = async function addLiquidity(tAddr, tamt, hAmt, accid, acc
 exports.removeLiquidity = async function removeLiquidity(tAddr, t_amt, accid, acckey) {
     try {
         const { session } = await ApiSession.default({wallet: {sdk : {operatorId: accid, operatorKey: acckey}}})
+        var { n, s, d } = await getinfo(tAddr)
         let factory_contract = await session.getLiveContract({id: ContractId.fromString(contract_Fac), abi: facAbi,})
         let exchange_addr = await factory_contract.getExchange(TokenId.fromString(tAddr).toSolidityAddress())
-        var { n, s, d } = await getinfo(tAddr)
         let exchange_contract = await session.getLiveContract({id: ContractId.fromSolidityAddress(exchange_addr.id), abi: exAbi,})
         let [hamt, tamt] = await exchange_contract.removeLiquidity(t_amt * (10 ** 8))
         let result =  {"Pair": `${s}/Hbar`, "Token Name": n, "Hbar Recieved": hamt.toNumber()/100000000}
@@ -152,14 +153,14 @@ exports.removeLiquidity = async function removeLiquidity(tAddr, t_amt, accid, ac
 exports.tokenToHbar = async function tokenToHbar(tAddr, tamt, accid, acckey) {
     try {
         const { session } = await ApiSession.default({wallet: {sdk : {operatorId: accid, operatorKey: acckey}}})
+        var { n, s, d } = await getinfo(tAddr)
         let factory_contract = await session.getLiveContract({id: ContractId.fromString(contract_Fac), abi: facAbi,})
         let exchange_addr = await factory_contract.getExchange(TokenId.fromString(tAddr).toSolidityAddress())
         let exchange_contract = await session.getLiveContract({id: ContractId.fromSolidityAddress(exchange_addr.id), abi: exAbi,})
-        var { n, s, d } = await getinfo(tAddr)
         let ttr = await exchange_contract.getHbar(tamt* (10 ** d))
         let hbarec = await exchange_contract.tokenTohbar(tamt* (10 ** d), ttr.toNumber())
         let result = {}
-        result[`${s} Deposited`] = tamt* (10 ** d)
+        result[`${s} Deposited`] = tamt
         result["Hbar recieved"] = hbarec.toNumber()/100000000
         return result;
     } catch(e) {
@@ -170,15 +171,15 @@ exports.tokenToHbar = async function tokenToHbar(tAddr, tamt, accid, acckey) {
 exports.hbarTotoken = async function hbarTotoken(tAddr, hAmt, accid, acckey) {
     try {
         const { session } = await ApiSession.default({wallet: {sdk : {operatorId: accid, operatorKey: acckey}}})
+        var { n, s, d } = await getinfo(tAddr)
         let factory_contract = await session.getLiveContract({id: ContractId.fromString(contract_Fac), abi: facAbi,})
         let exchange_addr = await factory_contract.getExchange(TokenId.fromString(tAddr).toSolidityAddress())
         let exchange_contract = await session.getLiveContract({id: ContractId.fromSolidityAddress(exchange_addr.id), abi: exAbi,})
         await optInExToken(exchange_contract, 3000000, session.wallet.account.id.toSolidityAddress())
-        var { n, s, d } = await getinfo(tAddr)
         let ttr = await exchange_contract.getToken(Hbar.from(hAmt, HbarUnit.Hbar).toTinybars().toNumber())
         let tokenR = await exchange_contract.hbarTotokenSwap({amount: Hbar.from(hAmt, HbarUnit.Hbar).toBigNumber()}, ttr.toNumber())
         let result = {}
-        result["Hbar deposited"] = Hbar.from(hAmt, HbarUnit.Hbar).toTinybars().toNumber()
+        result["Hbar deposited"] = Hbar.from(hAmt, HbarUnit.Hbar).toBigNumber().toNumber()
         result[`${s} received`] = tokenR.toNumber()/ (10 ** d)
         return result;
     } catch(e) {
@@ -189,19 +190,19 @@ exports.hbarTotoken = async function hbarTotoken(tAddr, hAmt, accid, acckey) {
 exports.tokenToToken = async function tokenToToken(fromAddr, toAddr, fromAmt, accid, acckey) {
     try {
         const { session } = await ApiSession.default({wallet: {sdk : {operatorId: accid, operatorKey: acckey}}})
+        var { n, s, d } = await getinfo(fromAddr)
+        var td = await getinfo(toAddr)
         let factory_contract = await session.getLiveContract({id: ContractId.fromString(contract_Fac), abi: facAbi,})
         let exchange_addrFr = await factory_contract.getExchange(TokenId.fromString(fromAddr).toSolidityAddress())
         let exchange_addrTo = await factory_contract.getExchange(TokenId.fromString(toAddr).toSolidityAddress())
         let exchange_contractFr = await session.getLiveContract({id: ContractId.fromSolidityAddress(exchange_addrFr.id), abi: exAbi,})
         let exchange_contractTo = await session.getLiveContract({id: ContractId.fromSolidityAddress(exchange_addrTo.id), abi: exAbi,})
-        var { n, s, d } = await getinfo(fromAddr)
-        var td = await getinfo(toAddr)
         let estfromate = await exchange_contractFr.getHbar(fromAmt * (10 ** d))
         let estomate = await exchange_contractTo.getToken(estfromate.toNumber())
         await optInExToken(exchange_contractTo, 4000000, session.wallet.account.id.toSolidityAddress())
         await exchange_contractFr.TokenToToken({gas:3000000}, TokenId.fromString(toAddr).toSolidityAddress(), fromAmt * (10 ** d), estomate.toNumber())
         let result = {}
-        result[`${s} Deposited`] = fromAmt * (10 ** d)
+        result[`${s} Deposited`] = fromAmt
         result [`${td.s} Recieved`] = estomate.toNumber() / (10 ** td.d)
         return result
     } catch(e) {
@@ -226,10 +227,10 @@ exports.getTokenAmount = async function getTokenAmount(tAddr, hAmt) {
 exports.getHbarAmount = async function getHbarAmount(tAddr, tamt) {
     try {
         const { session } = await ApiSession.default()
+        var { n, s, d } = await getinfo(tAddr)
         let factory_contract = await session.getLiveContract({id: ContractId.fromString(contract_Fac), abi: facAbi,})
         let exchange_addr = await factory_contract.getExchange(TokenId.fromString(tAddr).toSolidityAddress())
         let exchange_contract = await session.getLiveContract({id: ContractId.fromSolidityAddress(exchange_addr.id), abi: exAbi,})
-        var { n, s, d } = await getinfo(tAddr)
         let ttr = await exchange_contract.getHbar(tamt* (10 ** d))
         let res = {}
         res[`${s} deposited`] = tamt
@@ -243,25 +244,25 @@ exports.getHbarAmount = async function getHbarAmount(tAddr, tamt) {
 exports.getLP = async function getLP() {
     try {
         let lpJson = {}
-    let lplist = []
-    lpJson["Name"] = "Swift Dex"
-    const { session } = await ApiSession.default()
-    let factory_contract = await session.getLiveContract({id: ContractId.fromString(contract_Fac), abi: facAbi,})
-    let addresses = await factory_contract.Exchange_Addresses()
-    lpJson["NUmber of Pools"] = addresses.length
-    lpJson["Pools"] = lplist
+        let lplist = []
+        lpJson["Name"] = "Swift Dex"
+        const { session } = await ApiSession.default()
+        let factory_contract = await session.getLiveContract({id: ContractId.fromString(contract_Fac), abi: facAbi,})
+        let addresses = await factory_contract.Exchange_Addresses()
+        lpJson["NUmber of Pools"] = addresses.length
+        lpJson["Pools"] = lplist
 
-    for (var i = 0; i < addresses.length; i++) {
-        let exchange_addr = await factory_contract.getExchange(addresses[i])
-        let tid = TokenId.fromSolidityAddress(addresses[i]).toString()
-        let {n, s, d} = await getinfo(TokenId.fromSolidityAddress(addresses[i]))
-        let exchange_contract = await session.getLiveContract({id: ContractId.fromSolidityAddress(exchange_addr.id), abi: exAbi,})
-        let tokenReserve = await exchange_contract.getTokenReserve()
-        let hbarReserve = await exchange_contract.getHbarReserve()
-        let details = {"TokenId": tid, "Pair": `${s}/Hbar`, "Token Reserve": tokenReserve.toNumber()/ (10 ** d), "Hbar Reserve": hbarReserve.toNumber()/ (10 ** 8)}
-        lplist.push(details)
-    }
-    return lpJson
+        for (var i = 0; i < addresses.length; i++) {
+            let exchange_addr = await factory_contract.getExchange(addresses[i])
+            let tid = TokenId.fromSolidityAddress(addresses[i]).toString()
+            let {n, s, d} = await getinfo(TokenId.fromSolidityAddress(addresses[i]))
+            let exchange_contract = await session.getLiveContract({id: ContractId.fromSolidityAddress(exchange_addr.id), abi: exAbi,})
+            let tokenReserve = await exchange_contract.getTokenReserve()
+            let hbarReserve = await exchange_contract.getHbarReserve()
+            let details = {"TokenId": tid, "Pair": `${s}/Hbar`, "Token Reserve": tokenReserve.toNumber()/ (10 ** d), "Hbar Reserve": hbarReserve.toNumber()/ (10 ** 8)}
+            lplist.push(details)
+        }
+        return lpJson
     } catch(e) {
         return "Error Getting Liquidity Pools"
     }
@@ -307,3 +308,32 @@ exports.importWithKey = async function importWithKey(accountId, privatekey) {
     return deet
 }
 
+exports.account_info = async function account_info(accid) {
+    try {
+        let accinfo = await new AccountInfoQuery()
+        .setAccountId(accid)
+        .execute(client)
+        let acct_details = {}
+        let tlist = []
+        accinfo.tokenRelationships.__map.forEach((token) => {
+            let res = {}
+            res["TokenId"] = token.tokenId.toString()
+            res["TokenSymbol"] = token.symbol
+            res["TokenBalance"] = token.balance.toNumber()
+            tlist.push(res)
+        })
+        acct_details["AccountId"] = accid
+        acct_details["Hbar Balance"] = accinfo.balance.toString()
+        acct_details["Tokens"] = tlist
+        for(var i = 0; i < acct_details.Tokens.length; i++) {
+            let tid = acct_details.Tokens[i]["TokenId"]
+            let {n , s, d} = await getinfo(tid)
+            let bal = acct_details.Tokens[i]["TokenBalance"] / (10 ** d)
+            acct_details.Tokens[i]["TokenName"] = n
+            acct_details.Tokens[i]["TokenBalance"] = bal.toFixed(d)
+        }
+        return acct_details
+    } catch(e) {
+        return "Error Getting account Information"
+    }
+} 

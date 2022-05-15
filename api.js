@@ -1,7 +1,7 @@
 const express = require("express")
 const bodyParser = require("body-parser")
 require("dotenv").config()
-const { getLP, createAcct, importWithMnemonic, importWithKey, createPair, addLiquidity, removeLiquidity, hbarTotoken, tokenToHbar, tokenToToken, getTokenAmount, getHbarAmount } = require("./dex_utils.js")
+const { getLP, createAcct, importWithMnemonic, importWithKey, createPair, addLiquidity, removeLiquidity, hbarTotoken, tokenToHbar, tokenToToken, getTokenAmount, getHbarAmount, account_info } = require("./dex_utils.js")
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -57,7 +57,7 @@ app.post("/tokentohbar", (req, res) => {
 
 app.post("/tokentotoken", (req, res) => {
     const userinfo = req.body
-    tokenToToken(userinfo.fromid, userinfo.toid, userinfo.tamount, userinfo.acctid, userinfo.acctkey)
+    tokenToToken(userinfo.fromid, userinfo.toid, userinfo.tamount, userinfo.acctid, userinfo.acctkey).then(e => res.send(e))
 })
 
 app.post("/gettoken", (req, res) => {
@@ -68,4 +68,9 @@ app.post("/gettoken", (req, res) => {
 app.post("/gethbar", (req, res) => {
     const userinfo = req.body
     getHbarAmount(userinfo.tid, userinfo.tamount).then(e => res.send(e))
+})
+
+app.get("/info/:id", (req, res) => {
+    let {id} = req.params
+    account_info(id).then(e => res.send(e))
 })
