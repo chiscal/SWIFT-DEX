@@ -1,11 +1,13 @@
 const express = require("express")
 const bodyParser = require("body-parser")
+const cors = require("cors")
 require("dotenv").config()
 const { getLP, createAcct, importWithMnemonic, importWithKey, createPair, addLiquidity, removeLiquidity, hbarTotoken, tokenToHbar, tokenToToken, getTokenAmount, getHbarAmount, account_info } = require("./dex_utils.js")
 
 const app = express()
 const PORT = process.env.PORT || 3000
 
+app.use(cors())
 app.use(bodyParser.json())
 
 app.listen(PORT, () => {

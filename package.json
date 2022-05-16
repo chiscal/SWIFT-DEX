@@ -3,6 +3,7 @@
     "@buidlerlabs/hedera-strato-js": "^0.7.4",
     "@hashgraph/sdk": "^2.11.3",
     "axios": "^0.27.2",
+    "cors": "^2.8.5",
     "dotenv": "^16.0.1",
     "express": "^4.18.1",
     "input": "^1.0.1"
